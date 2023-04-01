@@ -209,41 +209,22 @@ List<User> users = userRepository.findAll(
 
 Hy vọng đoạn mã này giúp bạn hiểu cách viết specification cho entity khác.😊
 
-Nguồn: Cuộc hội thoại với Bing, 8/3/2023(1) Spring Data JPA Many To Many Relationship Mapping Example. https://attacomsian.com/blog/spring-data-jpa-many-to-many-mapping Đã truy nhập 8/3/2023.
-(2) Many-To-Many Relationship in JPA | Baeldung. https://www.baeldung.com/jpa-many-to-many Đã truy nhập 8/3/2023.
-(3) java - Spring Data JPA Specification for a ManyToMany Unidirectional .... https://stackoverflow.com/questions/31841471/spring-data-jpa-specification-for-a-manytomany-unidirectional-relationship Đã truy nhập 8/3/2023.
-(4) ManyToMany (Java(TM) EE 7 Specification APIs). https://docs.oracle.com/javaee/7/api/javax/persistence/ManyToMany.html Đã truy nhập 8/3/2023.
-
-Dạ, có một cách để sau khi sử dụng specification thì user.getRoles() có thể trả về dữ liệu của Role mà không cần lấy hết các bản ghi không có roleId không nằm trong yêu cầu. Đó là sử dụng phương thức fetch() của Root để chỉ định rằng bạn muốn lấy ra các role liên quan đến user¹. Ví dụ:
+Ví dụ:
 
 ```java
 // Tạo một specification để tìm user có role có id bằng keyword 
-   public static Specification<User> hasRole(Long keyword) {
-        return (root, query, cb) -> {
-            // Sử dụng phương thức fetch() của Root để lấy ra các role liên quan đến user
-            Fetch<User, Role> roleFetch = root.fetch("roles");
-            // Sử dụng phương thức equal của CriteriaBuilder trên thuộc tính id của role 
-            Predicate predicate = cb.equal(roleFetch.get("id"), keyword);
-            // Sử dụng phương thức distinct() của CriteriaQuery để loại bỏ các bản ghi trùng lặp
+    public Specification<User> findUsersWithUploadables(Long userId) {
+        return (root, query, criteriaBuilder) -> {
+            final var join = (Join<Object, Object>) root.fetch(User_.UPLOADABLES, JoinType.LEFT);
             query.distinct(true);
-            return predicate;
+            Predicate id = criteriaBuilder.equal(root.get("id"), userId);
+            return criteriaBuilder.and(
+                    id,
+                    criteriaBuilder.equal(join.get(Uploadable_.OBJECT_TYPE), "USER"),
+                    criteriaBuilder.equal(join.get(Uploadable_.OBJECT_FIELD), "AVATAR")
+            );
         };
-   }
+    }
 ```
 
-Sau khi sử dụng specification này, khi bạn gọi phương thức user.getRoles(), bạn sẽ chỉ nhận được các role có id bằng keyword mà không cần tạo ra câu truy vấn mới². Ví dụ:
-
-```java
-// Lấy ra danh sách user có role có id là 1
-List<User> users = userRepository.findAll(
-     UserSpecification.hasRole(1L)
-);
-
-// Lấy ra danh sách role của user đầu tiên trong danh sách (chỉ có 1 role)
-Set<Role> roles = users.get(0).getRoles();
-```
-
-Nguồn: Cuộc hội thoại với Bing, 8/3/2023(1) Many-To-Many Relationship in JPA | Baeldung. https://www.baeldung.com/jpa-many-to-many Đã truy nhập 8/3/2023.
-(2) java - jpa criteria for many to many relationship - Stack Overflow. https://stackoverflow.com/questions/8135612/jpa-criteria-for-many-to-many-relationship Đã truy nhập 8/3/2023.
-(3) JPA - filter by multiple Columns - BezKoder. https://www.bezkoder.com/jpa-filter-by-multiple-columns/ Đã truy nhập 8/3/2023.
-
+Sau khi sử dụng specification này, khi bạn gọi phương thức user.getUploadables(), bạn sẽ chỉ nhận được các uploadables có objectType = 'USER' và objectField bằng 'AVATAR'
